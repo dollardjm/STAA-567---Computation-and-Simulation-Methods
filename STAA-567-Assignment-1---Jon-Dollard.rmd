@@ -1,0 +1,206 @@
+---
+title: "STAA 567 - Assignment 1"
+author: "Jon Dollard"
+date: "10/23/2020"
+output: pdf_document
+---
+
+```{r setup, message = FALSE, warning = FALSE}
+library(ggplot2)
+library(tidyverse)
+library(gridExtra) #gives you grid.arrange()
+library(pracma)    #gives you the movavg() function
+library(knitr)     #making tables
+library(lubridate) 
+```
+
+COVID-19 data: In this problem you’ll examine the number of positive COVID-19 tests in Larimer
+County, Colorado. For each day, you’ll need to compute the 14-day running average of COVID-19 cases.
+You’ll consider multiple approaches to do the computation.
+
+Use the COVID-19 data to do the following:
+
+ - Method 1: Use a for loop. Create a function for your for loop with arguments that allow
+   you to change the raw data (here cases per day) and length of running average (here 14).
+   
+ - Method 2: Create a function that uses the cumsum function instead of a for loop to compute the
+   running average.
+   
+ - Method 3: Use another method. Design your own or find one in a package. 
+ 
+
+```{r, message=FALSE}
+#Read in the data to r
+cases = read_csv("2020.10.22.Larimer_cases-by-day.csv")
+
+#Look at a summary of cases to make sure things look right
+head(cases)
+summary(cases)
+length(cases$Cases)
+```
+
+```{r}
+#Use a for loop to calculate the 14-day running average
+#create a variable for the 14-day running average and initialize it outside the for loop to NULL
+average_14_day_fl = NULL
+
+for(i in 1:(length(cases$Cases)-13)){
+  average_14_day_fl[i] = sum(cases$Cases[i:(i+13)])/14
+}
+
+#take a look at the first 5 values of the average 14 day running average
+head(average_14_day_fl)
+```
+
+```{r}
+#For method 2 we will use the cumsum function to calculate the 14 day running average
+n = 14
+
+#create a vector with the cases values in them
+cases_vec <- cases$Cases
+
+#Create a vector with cumulative sums 
+cum_cases <- c(0,cumsum(cases_vec))
+
+#Now we can calculate the 14 day running averages
+average_14_day_cs = (cum_cases[(n+1):length(cum_cases)] - cum_cases[1:(length(cum_cases)-n)])/n
+
+#Take a look at the first 5 values
+head(average_14_day_cs)
+
+#Quick check for equivalence with the 14-day running average using the for loop
+identical(average_14_day_fl,average_14_day_cs)
+```
+
+```{r}
+#For method 3 I will use movavg function in the pracma library
+average_14_day_mo = movavg(cases$Cases, 14, type = "s")
+
+#Remove the first 13 days from the vector
+average_14_day_mo <- average_14_day_mo[14:length(average_14_day_mo)]
+
+#Take a look at the first 5 values
+head(average_14_day_mo)
+
+#Quick check for equivalence with the other methods
+identical(average_14_day_cs,average_14_day_mo)
+```
+
+To turn in:
+
+1. Make a table to show the running average for the last 5 days computed using all 3 methods. If
+you’ve done things correctly, all three columns will be identical.
+
+```{r}
+#create a table of the last 5 days computed using all 3 methods
+table_matrix <- matrix(c((average_14_day_fl[(length(average_14_day_fl)-4):length(average_14_day_fl)])                                                  ,(average_14_day_cs[(length(average_14_day_cs)-4):length(average_14_day_cs)]),                                                  (average_14_day_mo[(length(average_14_day_mo)-4):length(average_14_day_mo)])),
+                         nrow = 5, ncol = 3, 
+                         dimnames = list(c(cases$Date[(length(cases$Date)-4):length(cases$Date)])))
+
+kable(table_matrix, col.names = c("Method 1", "Method 2", "Method 3"), align = "ccc", caption = "14 Day Running Average Using 3 Methods")
+```
+
+
+2. Plot your output to show the 14-day running average over time computed using all the methods
+that you created. Use the facet_grid command in ggplot or some other approach to show the
+results for all 3 methods.
+
+```{r}
+#Create data frames for each method to use with ggplot
+meth1_df <- data.frame(y = average_14_day_fl, x = cases$Date[14:length(cases$Date)])
+meth2_df <- data.frame(y = average_14_day_cs, x = cases$Date[14:length(cases$Date)])
+meth3_df <- data.frame(y = average_14_day_mo, x = cases$Date[14:length(cases$Date)])
+
+#Use ggplot to plot the 3 methods on different plots
+meth1_plot <- ggplot() +
+              geom_line(data = meth1_df, aes(x = mdy(x), y = y)) 
+meth2_plot <- ggplot() +
+              geom_line(data = meth2_df, aes(x = mdy(x), y = y))
+meth3_plot <- ggplot() +
+              geom_line(data = meth3_df, aes(x = mdy(x), y = y))
+
+grid.arrange(meth1_plot, meth2_plot, meth3_plot)
+```
+
+3. Compare the timing of your methods. To get a meaningful comparison, replicate the data 10,000
+times so that you have a larger data set. Report the times for your methods.
+
+```{r}
+#calculate system times for each method and the discuss
+
+#For method 1 create a function using with a for loop
+method1 = function(x, n){
+  average_14_day_fl = NULL  
+      for(i in 1:(length(x)-13)){
+      average_14_day_fl[i] = sum(x[i:(i+13)])/14
+      }
+    }
+
+#Calculate system time for 10,000 repetitions
+sys_time_m1 <- system.time(method1(rep(cases$Cases,10000),14))
+
+#Report system time for method 1
+sys_time_m1
+
+#For method 2 create a function using the cumsum function
+method2 = function(x,n){
+  cases_vec <- x
+  cum_cases <- c(0,cumsum(x))
+  average_14_day_cs = (cum_cases[(n+1):length(cum_cases)] - cum_cases[1:(length(cum_cases)-n)])/n
+}
+
+#Calculate system time for 10,000 repetitions
+sys_time_m2 <- system.time(method2(rep(cases$Cases,10000),14)) 
+
+#Report system time for method 2
+sys_time_m2
+
+#For method 3 create a function using the movavg() function in the pracma library
+method3 = function(x,n){
+  average_14_day_mo = movavg(x, n, type = "s")
+}
+
+#Calculate the system time for 10,000 repetitions
+sys_time_m3 <- system.time(method3(rep(cases$Cases,10000),14)) 
+
+#Report the system time for method 3
+sys_time_m3
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

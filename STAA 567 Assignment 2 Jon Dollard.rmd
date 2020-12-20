@@ -1,0 +1,469 @@
+---
+title: "Assignment 2 - Optimization Methods"
+author: "Jon Dollard"
+date: "10/31/2020"
+output: pdf_document
+---
+
+```{r setup, message = FALSE, warning = FALSE}
+library(ggplot2)
+library(tidyverse)
+library(gridExtra) #gives you grid.arrange()
+library(knitr)     #making tables
+library(lubridate) 
+```
+
+1.
+
+(a) Use the R function optimize to find the maximum of $g(x) = log(x) / (x+1)$, Find the maximum of g over the interval [1,5] with an accuracy of 0.001 (i.e., $\epsilon$ = 0.001).  Provide the R code and the final approximation.
+
+```{r}
+#Create a function to return the maximum of a function 
+g <- function(x){
+      log(x) / (x + 1)
+} 
+
+interval <- c(1:5)
+
+eps <- 0.001
+
+fun_opt <- function(g, interval, eps){
+  opt <- optimize(g, interval, maximum = TRUE, tol = eps)
+  return(opt)
+}
+
+opt_fun_out <- fun_opt(g, interval, eps)
+opt_fun_out
+
+```
+
+(b) Compare the optimize function with the other three optimization techniques we have discussed:  interval bisection, Newton-Raphson and the secant method.  (You'll need to write the functions for these).  For all four optimization routines, determine how many iterations are required so that successive approximations differ by less than $\epsilon$ = 0.001.  For the interval bisection and optimize methods, begin with the interval [1,5]; for Newton-Raphson specify $x^{(0)}$ = 1; for the secant method specify $x^{(0)}$ = 1 and $x^{(1)}$ = 5.
+
+Turn in the following:
+
+i. R code for your algorithms
+
+```{r, bisection method}
+#Optimize part (a) using the interval bisection method
+#create a function for the first derivative of g
+g.prime = function(x){(1+(1/x)-log(x))/((1+x)^2)}
+
+#initialize variables to be used in the function
+l = 1
+r = 5
+iter = 12
+
+#create a function using the interval bisection method
+int_bisec <- function(dg, l, r, iter, eps){
+	#dg is the objective function
+  #l is the left endpoint of the interval
+  #r is the right endpoint of the interval
+  #iter is the number of iterations
+  #eps is the error term and stop condition
+  
+  x_opt_bisec <<- NULL        #Initialize the x_opt_bisec variable (global variable for use outside the function)
+  i_bisec <<- NULL            #Initialize the loop variable (global variable for use outside the function)
+  
+  for (i_bisec in 1:iter){
+      
+        #Code to implement the bisection method
+        x_opt_bisec[i_bisec] <- (l+r)/2        
+		
+		    if (dg(l)*dg(x_opt_bisec[i_bisec])<0){  
+			
+		      r <- x_opt_bisec[i_bisec]
+		
+		    }
+		
+		    else {
+		  
+			    l <- x_opt_bisec[i_bisec]
+			
+		    }
+		
+	      #Code to check for convergence criteria
+        if(i_bisec > 1 && (abs(x_opt_bisec[i_bisec] - x_opt_bisec[i_bisec-1]) < eps)){
+	    
+	          #accuracy criteria met, output a message to the user that includes the number of iterations
+	          #and the value of x
+	          cat("The number of iterations for convergence is", i_bisec,".", "The optimized value of the function is", x_opt_bisec[i_bisec])
+	      
+	          #set final values for global variables 
+            x_opt_bisec <<- x_opt_bisec
+            i_bisec <<- i_bisec
+       
+            #silent return so that NULL isn't output
+            return(cat(""))
+	      
+	        }
+	}
+    
+    #Code to check for lack of convergence
+    if(abs(x_opt_bisec[i_bisec] - x_opt_bisec[i_bisec-1]) >= eps){
+    
+    #Warning message to the user if the bisection method fails to converge
+    cat("Warning - This method failed to converge in", iter, "iterations.")
+    }
+
+}
+
+int_bisec(g.prime, l, r, iter, eps)
+g_x_bisec <- g(x_opt_bisec[i_bisec])
+g_x_bisec
+```
+
+```{r, Newton-Raphson method}
+#Optimize part (a) using the Newton-Raphson method
+#create a function for the first derivative of g
+g.prime = function(x){(1+(1/x)-log(x))/((1+x)^2)}
+
+#create a function for the second derivative of g
+g.2prime <- function(x){( (-1/x^2-1/x)*(1+x) - 2*(1+1/x-log(x)) )/((1+x)^3)}
+
+#create a function for the ratio of g'/g''
+h <- function(x){(1+x)*(1+1/x-log(x))/(-3-4/x-1/x^2+2*log(x))}
+
+#initialize variables to be used in the function
+x_0 = 1
+iter = 10
+
+#create a function for the Newton-Raphson method
+newtons_meth <- function(h, x_0, iter, eps){
+	#h is the ratio of g'/g''
+  #x_0 is the initial guess
+  #iter is the number of iterations
+  #eps is the error term and stop condition
+  
+  x_opt_newt <<- NULL         #Initialize the x_opt_newt variable (global variable for use outside the function)
+  i_newt <<- NULL             #Initialize the loop variable (global variable for use outside the function)
+  
+  x_opt_newt <- x_0
+	
+  for (i_newt in 1:iter){
+		 
+       #Code to implement the Newton-Raphson method
+        x_opt_newt[i_newt + 1] <- x_opt_newt[i_newt] - h(x_opt_newt[i_newt])        
+		
+          #Code to check for convergence criteria
+          if(i_newt > 1 && (abs(x_opt_newt[i_newt + 1] - x_opt_newt[i_newt]) < eps)) {
+	    
+	          #accuracy criteria met, output a message to the user that includes the number of iterations
+	          #and the value of x
+	          cat("The number of iterations for convergence is", i_newt,".", "The optimized value of the function is", x_opt_newt[i_newt + 1])
+	      
+	          #set final values for global variables 
+            x_opt_newt <<- x_opt_newt
+            i_newt <<- i_newt
+       
+            #silent return so that NULL isn't output
+            return(cat(""))
+	      
+          }
+        
+       }
+    
+    #Code to check for lack of convergence
+    if(abs(x_opt_newt[i_newt + 1] - x_opt_newt[i_newt]) >= eps){
+    
+    #Warning message to the user if the bisection method fails to converge
+    cat("Warning - This method failed to converge in", iter, "iterations.")
+    }
+
+}
+
+newtons_meth(h, x_0, iter, eps)
+
+g_x_newt <- g(x_opt_newt[i_newt])
+g_x_newt
+```
+
+```{r, secant method}
+#Optimize part (a) using the secant method
+#create a function for the first derivative of g
+g.prime = function(x){(1+(1/x)-log(x))/((1+x)^2)}
+
+#initialize variables to be used in the function
+x_0 = 1
+x_1 = 5
+iter = 20
+
+#create a function for the secant method
+secant_meth <- function(dg, x_0, x_1, iter, eps){
+	#dg is the derivative of the object function
+  #x_0 is an initial guess
+  #x_1 is an initial guess
+  #iter is the number of iterations
+  #eps is the error term and stop condition
+  
+  x_opt_secant <<- NULL         #Initialize the x_opt_newt variable (global variable for use outside the function)
+  i_secant <<- NULL             #Initialize the loop variable (global variable for use outside the function)
+  
+  x_opt_secant <- c()
+  x_opt_secant[1] <- x_0
+  x_opt_secant[2] <- x_1
+	
+  for (i_secant in 3:(iter + 3)){
+		
+       #Code to implement the secant method
+       h <- dg(x_opt_secant[i_secant - 1]) * (x_opt_secant[i_secant - 1] - x_opt_secant[i_secant - 2]) / (                                       (dg(x_opt_secant[i_secant - 1]) - dg(x_opt_secant[i_secant - 2])))
+		   x_opt_secant[i_secant] <- x_opt_secant[i_secant - 1] - h        
+		
+          #Code to check for convergence criteria
+          if(i_secant > 3 && (abs(x_opt_secant[i_secant] - x_opt_secant[i_secant - 1]) < eps)) {
+	    
+	          #accuracy criteria met, output a message to the user that includes the number of iterations
+	          #and the value of x
+	          cat("The number of iterations for convergence is", i_secant - 2,".", "The optimized value of the function is", x_opt_secant[i_secant])
+	      
+	          #set final values for global variables 
+            x_opt_secant <<- x_opt_secant[i_secant]
+            i_secant <<- i_secant - 2                  #Subtract 2 for our first 2 initial guesses
+       
+            #silent return so that NULL isn't output
+            return(cat(""))
+	      
+          }
+        
+       }
+    
+    #Code to check for lack of convergence
+    if(abs(x_opt_secant[i_secant] - x_opt_secant[i_secant - 1]) >= eps){
+    
+    #Warning message to the user if the bisection method fails to converge
+    cat("Warning - This method failed to converge in", iter, "iterations.")
+    }
+
+}
+
+secant_meth(g.prime, x_0, x_1, iter, eps)
+
+g_x_secant <- g(x_opt_secant)
+g_x_secant
+
+```
+
+ii. Create a table
+
+```{r, table}
+opt_mat <- matrix(c("optimize (R fcn)", opt_fun_out$maximum, opt_fun_out$objective, ""), nrow = 1, ncol = 4)
+bis_mat <- matrix(c("Bisection", x_opt_bisec[i_bisec], g_x_bisec, i_bisec), nrow = 1, ncol = 4)
+new_mat <- matrix(c("Newton Raphson", x_opt_newt[i_newt], g_x_newt, i_newt), nrow = 1, ncol = 4)
+sec_mat <- matrix(c("Secant", x_opt_secant, g_x_secant, i_secant), nrow = 1, ncol = 4)
+
+table_matrix <- t(matrix(c(opt_mat, bis_mat, new_mat, sec_mat), nrow = 4, ncol = 4))
+
+kable(table_matrix, col.names = c("Method", "x (optimum)", "g(x)", "# of iterations"), align = "lccc", caption = "Optimization Methods Comparison")
+```
+
+iii. Write a sentence or two summarizing your results.  Which method seems best for this problem?
+
+We see from the results table that all the methods converge to very similar values.  In fact, if we had rounded at 2 decimal places the results would have been the same.  The intervals for convergence are also close with the Newton-Raphson method appearing to be slightly better since it has the lowest number of interations required for convergence.
+
+2.
+
+(a) Create a program in R which approximates the root of $h(x) = x^3 + x - 1$ using the interval bisection method.  Graph the function first to determine a starting interval.  Use the absolute convergence criterion with $\epsilon$ = 0.001.  Using a starting interval of [-3,3].  Provide the R code and show the approximation corresponding to the first five iterations.
+
+```{r}
+#plot h(x) to determine the starting interval for the bisection method
+par(mfrow=c(2,2) , mar=c(4,4,2,2))
+x <- seq(-3,3,.01)
+h_x <- function(x){x^3 + x - 1}
+plot(x,h_x(x),type="l")
+abline(h = 0, lty = "dashed")
+title("Fig 1:  h")
+
+#Create a function using the interval bisection method for root approximation
+
+#initialize variables to be used in the function
+a <- -3
+b <- 3
+iter = 20
+eps = 0.001
+
+bisec_meth_roots <- function(f, a, b, iter, eps){
+  #f is the function we are interested in finding a root for
+  #a is the left endpoint of the interval
+  #b is the right endpoint of the interval
+  #iter is the number of iterations
+  #eps is the precision of our estimate
+ 
+  x_bisec <<- NULL     #create a global variable for the root that we can access outside the function
+  i_bis_meth <<- NULL  #create a global variable for the iteration value when the precision is reached
+  
+  for (i_bis_meth in 1:iter){
+    
+      #code to implement the bisection method
+      x_bisec[i_bis_meth] <- (a + b) / 2
+      
+      if(sign(f(x_bisec[i_bis_meth])) == sign(f(a))){
+        a <- x_bisec[i_bis_meth]
+      }
+      
+      else{
+        b <- x_bisec[i_bis_meth]
+      }
+    
+        #Code to check for convergence criteria
+        if(i_bis_meth > 1 && (abs(x_bisec[i_bis_meth] - x_bisec[i_bis_meth-1]) < eps)){
+	    
+	          #accuracy criteria met, output a message to the user that includes the number of iterations
+	          #and the value of x
+	          cat("The number of iterations for convergence is", i_bis_meth,".", "The root value of the function is", x_bisec[i_bis_meth])
+	      
+	          #set final values for global variables 
+            x_bisec <<- x_bisec
+            i_bis_meth <<- i_bis_meth
+       
+            #silent return so that NULL isn't output
+            return(cat(""))
+	      
+	      }
+   }
+  
+    #Code to check for lack of convergence
+    if(abs(x_bisec[i_bis_meth] - x_bisec[i_bis_meth - 1]) >= eps){
+    
+    #Warning message to the user if the bisection method fails to converge
+    cat("Warning - This method failed to converge in", iter, "iterations.")
+    }
+  
+}
+
+bisec_meth_roots(h_x, a, b, iter, eps)
+x_bisec[1:5]
+```
+
+(b) Repeat (a) using the R function uniroot with the same starting interval and $\epsilon$ = 0.001.  Compare convergence of uniroot and the bisection method.  How many iterations did it take for each of the methods to converge if $\epsilon$ = 0.001?  When $\epsilon$ = 0.001, which method found a solution $x^*$ where $h(x^*)$ is closest to 0?
+
+```{r}
+#Create a function using the uniroot function in r
+interval <- c(-3,3)
+
+uniroot_opt <- function(f, interval, eps){
+  uni_opt <- uniroot(f, interval, tol = eps, check.conv = TRUE)
+  return(uni_opt)
+}
+
+uniroot_opt_out <- uniroot_opt(h_x, interval, eps)
+uniroot_opt_out
+```
+
+```{r}
+#Determine which method produced a solution closest to zero
+error_bisec <- abs(0 - h_x(x_bisec[i_bis_meth]))
+error_bisec
+error_uniroot <- uniroot_opt_out$f.root
+error_uniroot
+```
+
+It took 13 iterations for the interval bisection method to converge compared with 9 iterations for the uniroot() function in r.  The uniroot method found a solution $x^*$ that was closest to 0.
+
+3.  Create a program in R which approximates the root of $sin(x) + x^2cos(x) - x^2 - x$ using Newton-Raphson.  Specify a starting value of $x^{(0)}$ = 1.  Allow 15 iterations.  Provide the R code and the approximation corresponding to the first 15 iterations.
+
+```{r}
+#create a function for the equation in the problem statement
+g_x <- function(x){sin(x) + (x^2) * cos(x) - x^2 - x}
+
+#create a function for the first derivative of g
+g_x_prime = function(x){cos(x) + 2 * x * cos(x) - (x^2) * sin(x) - 2 * x - 1}
+
+#create a function for the second derivative of g
+#g_x_2prime <- function(x){-sin(x) - 4 * x * sin(x) - (x^2) * cos(x) + 2 * cos(x) - 2}
+
+#create a function for the ratio of g'/g''
+h_x <- function(x){(sin(x) + (x^2) * cos(x) - x^2 - x) / (cos(x) + 2 * x * cos(x) - (x^2) * sin(x) - 2 * x - 1)}
+
+#initialize variables to be used in the function
+eps = 0.01
+x_0 = 1
+iter = 15
+
+#create a function for finding roots using Newton-Raphson method
+newtons_meth_roots <- function(h, x_0, iter, eps){
+  #h is the ratio of g/g'
+  #x_0 is the initial guess
+  #iter is the number of iterations
+  #eps is the error term and stop condition
+  
+  x_newt_root <<- NULL             #Initialize the x_newt_root variable (global variable for use outside the function)
+  i_newt_root <<- NULL             #Initialize the loop variable (global variable for use outside the function)
+  
+  x_newt_root <- x_0
+	
+  for (i_newt_root in 1:iter){
+		 
+       #Code to implement the Newton-Raphson method
+        x_newt_root[i_newt_root + 1] <- x_newt_root[i_newt_root] - h(x_newt_root[i_newt_root])        
+		
+          #Code to check for convergence criteria
+          if(i_newt_root > 1 && (abs(x_newt_root[i_newt_root + 1] - x_newt_root[i_newt_root]) < eps)) {
+	    
+	          #accuracy criteria met, output a message to the user that includes the number of iterations
+	          #and the value of x
+	          cat("The number of iterations for convergence is", i_newt_root,".", "The root of the function is", x_newt_root[i_newt_root + 1])
+	      
+	          #set final values for global variables 
+            x_newt_root <<- x_newt_root
+            i_newt_root <<- i_newt_root
+       
+            #silent return so that NULL isn't output
+            return(cat(""))
+	      
+          }
+        
+       }
+    
+    #Code to check for lack of convergence
+    if(abs(x_newt_root[i_newt_root + 1] - x_newt_root[i_newt_root]) >= eps){
+    
+    #Warning message to the user if the bisection method fails to converge
+    cat("Warning - This method failed to converge in", iter, "iterations.")
+    
+    x_newt_root <<- x_newt_root
+    i_newt_root <<- i_newt_root
+      
+    }
+
+}
+  
+newtons_meth_roots(h_x, x_0, iter, eps)
+x_newt_root[2:(iter + 1)]
+
+```
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

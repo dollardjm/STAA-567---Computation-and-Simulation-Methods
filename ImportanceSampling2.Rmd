@@ -1,0 +1,101 @@
+---
+title: "Importance Sampling"
+author: "Jennifer Hoeting, Colorado State University"
+output: html_document
+---
+
+```{r setup, message=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+set.seed(100)
+```
+
+Importance sampling example discussed in class on 12/9.  Goal is to estimate $\int_0^1 \frac{\exp{(-x)}}{1+x^2}dx$. 
+
+
+
+We'll start with a comparison plot to help think about which approach will be the best.  We examine the ratio of our target integrand over $f(x)$ for Monte Carlo integration or $\phi(x)$ for Importance sampling.  The line that is flatter is probably a better approach as it will lead to an estimator with lower variance.  
+
+
+
+```{r }
+
+#Entire function we are estimating (see the integral above)
+g <- function(x) {
+  exp(-x)/(1 + x^2)
+}
+
+#Option A
+f <- function(x) {
+  dexp(x, 1)
+}
+
+#Option B
+phi_B <- function(x) {
+  dunif(x, 0, 1)
+}
+
+#Option C
+phi_C <- function(x) {
+  exp(-x)/(1 - exp(-1)) * (x >= 0 & x <= 1)
+}
+
+x <- seq(0, 1, length.out = 500)
+
+ggplot() +
+  geom_line(aes(x, g(x)/f(x)), color = "black") +
+  geom_line(aes(x, g(x)/phi_B(x)), color = "red") +
+  geom_line(aes(x, g(x)/phi_C(x)), color = "blue")
+```
+
+
+## Implement all 3 algorithms
+
+Estimate $\theta$:  Compute $\hat\theta$ and $\widehat{\mbox{var}} \left( \hat\theta\right)$. 
+
+
+```{r}
+
+n <- 5000
+
+## Option A
+theta_A <- function(m) {
+  x <- rexp(n, 1)
+  g <- 1/(1 + x^2) * (x <= 1)
+  theta_hat <- mean(g)
+  var_hat <- 1/n * mean((g - theta_hat)^2)
+  c(theta_hat, var_hat)
+}
+
+## Option B
+theta_B <- function(n) {
+  x <- runif(n, 0, 1)
+  g <- exp(-x)/(1 + x^2)
+  theta_hat <- mean(g)
+  var_hat <- 1/n * mean((g - theta_hat)^2)
+  c(theta_hat, var_hat)
+}
+
+## Option C
+theta_C <- function(n) {
+  u <- runif(n, 0, 1)
+  x <- -log(1 - u * (1 - exp(-1))) 
+  g <- (1 - exp(-1))/(1 + x^2)
+  theta_hat <- mean(g)
+  var_hat <- 1/n * mean((g - theta_hat)^2)
+  c(theta_hat, var_hat)
+}
+
+#Our three estimates
+theta_A(n)
+theta_B(n)
+theta_C(n)
+
+#Compare to an estimate computed using numerical integration
+integrate(g, 0, 1)
+
+```
+
+
+In this example, $\theta_C$ has the smallest variance so that is good.  And, $\hat{\theta}_C$ is close to the value optained based on numerical integration. If you increase $n$ (the number of Monte Carlo samples),  estimator C will get even closer to the true value.  

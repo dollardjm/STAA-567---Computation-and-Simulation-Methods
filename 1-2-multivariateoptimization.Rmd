@@ -1,0 +1,121 @@
+---
+title: 'STAA575: Multivariate Optimization'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#fig.height=4 makes plots 4 inches high 
+```
+
+Example:  use Newton's method to find the/an optimum of the function
+$$
+g(x_1,x_2) = 10 - (x_1^2 + x_2 - 11)^2 - (x_1+x_2^2- 7 )^2.
+$$
+
+## Bivariate Newton's method
+
+3D plot of the objective function
+```{r,fig.width = 4, fig.height = 4}
+x <- seq(-5, 5, 0.1)
+y <- seq(-5, 5, 0.1)
+# objective function
+g <- function(x,y){10-(x^2+y-11)^2-(x+y^2-7)^2}
+
+z=outer(x,y,g)
+persp(x,y,z,theta=30,phi=30,main="Objective function")
+```
+
+Newton's method
+```{r,fig.width = 4.5, fig.height = 4.5}
+
+# objective function and derivatives
+g <- function(x){10-(x[1]^2+x[2]-11)^2-(x[1]+x[2]^2-7)^2}
+
+g.prime <- function(x){
+	dgx1 <- -4*x[1]*(x[1]^2+x[2]-11)-2*(x[1]+x[2]^2-7)
+	dgx2 <- -2*(x[1]^2+x[2]-11)-4*x[2]*(x[1]+x[2]^2-7)
+	grad <- matrix(c(dgx1,dgx2),ncol=1)
+	return(grad)
+}
+
+g.hessian <- function(x){
+	d2gx1x1 = -12*x[1]^2-4*x[2]+42
+	d2gx2x2 = -12*x[2]^2-4*x[1]+26
+	d2gx1x2 = -4*(x[1]+x[2])
+	H <- matrix(c(d2gx1x1,d2gx1x2,d2gx1x2,d2gx2x2),nrow=2)
+	return(H)
+}
+
+x <-  c(2,3) # initial value
+itr <- 20 # maximum iterations
+x.values <- matrix(0,itr+1,2)
+x.values[1,] <- x
+
+# Newton's method
+for(i in 1:itr){
+	x <- x - solve(g.hessian(x))%*%g.prime(x)
+	x.values[i+1,] <- x
+}
+
+# output
+x  #estimate of solution
+g(x) # objective function at estimate 
+g.prime(x) 	# gradient at estimate
+
+# Contour plot of the objective function with the algorithm path
+z = matrix(0,100,100)
+x1 = seq(-5,5,length=100)
+x2 = seq(-5,5,length=100)
+for(i in 1:100){
+	for(j in 1:100){
+		z[i,j] = g(c(x1[i],x2[j]))
+	}
+}
+
+#contour plot
+contour(x1,x2,z,nlevels=20,drawlabels=TRUE, 
+        main="Contour plot of the objective function \n algorithm path shown in red")
+
+# plot path of Newton's method solutions
+for(i in 1:itr){segments(x.values[i,1],x.values[i,2],x.values[i+1,1],x.values[i+1,2],col='red')}
+
+```
+
+
+## The optim function in R
+```{r}
+#?optim
+
+minusg <- function(x){return(-g(x))}
+opt <- optim(par=c(2,2),minusg, method='Nelder-Mead')
+opt 
+
+opt <- optim(par=c(2,2),minusg, method='BFGS')
+opt 
+```
+
+## Using optim to perform maximum likelihood estimation
+
+Goal:  
+
+```{r}
+set.seed(1)
+my.data <- rnorm(15,mean=2,sd=5)
+llik <- function(theta,y){
+	return(-sum(dnorm(y,mean=theta[1],sd=theta[2],log=TRUE)))
+}
+
+opt <- optim(par=c(0,1),fn=llik,hessian=TRUE,y=my.data)
+opt
+
+sqrt(diag(solve(opt$hessian))) #standard errors for maximum likelihood estimates
+```
+
+
+ 
+
+
+
+
+Question:  How can we change the data to get more precise estimates of $\theta$?

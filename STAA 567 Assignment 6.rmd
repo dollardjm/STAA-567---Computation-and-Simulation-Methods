@@ -1,0 +1,217 @@
+---
+title: "STAA 567 Assignment 6 - Monte Carlo Integration"
+author: "Jon Dollard"
+date: "12/6/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyverse)
+library(gridExtra) #gives you grid.arrange()
+library(knitr)     #making tables
+```
+
+Let $\theta$ = $\int_{0}^{5} x^3e^{-x} \, dx$
+
+1. Develop a Monte Carlo integration approach to estimate $\theta$.  Write out pseudo code for your algorithm including the formula for your estimator $\hat{\theta}$.
+
+We notice that the function we want to integrate contains $e^{-x}$ which is itself a probability density function that we can easily sample from in R.  Therefore, we select f(x) = $e^{-x}$ for $x \geq 0$ and 0 otherwise.  Now that we have chosen f(x) as our sampling distribution we can write out the pseudocode as follows:
+
+Step 1:  Sample from f(x) where $X_1,....,X_n$ ~ Exp(1)\
+Step 2:  Calculate the estimate for $\theta$ where $\hat{\theta} = \frac{1}{n}\sum^n_{i=1} x^3 1[0 \leq x_i \leq 5]$
+
+2. Develop an importance sampling approach to estimate $\theta$.  Write out pseudo code for your algorithm including the formula for your estimator $\hat{\theta}$.
+
+For my importance sampling approach I want to consider a distribution that is bounded on the same interval as the integral we want to evaluate to reduce the variance of the estimator.  We notice that choosing $\phi(x)$ = $\frac{1}{5}[0 \leq x \leq 5]$ provides a sampling distribution defined on the same interval as the integral we want to evaluate.
+
+Step 1:  Sample from $\phi(x)$ where $X_1,....,X_n$ ~ Unif(0,5)\
+Step 2:  Calculate the estimate for $\theta$ where $\hat{\theta} = 5\times\frac{1}{n}\sum^n_{i=1} x^3e^{-x}$\
+
+3. Implement your algrorithms for n = 1000 Monte Carlo draws.  Report your results in a nice table.
+
+```{r}
+#Monte Carlo Integration
+set.seed(1)
+n <- 1000
+x <- rexp(n, rate = 1)
+theta_hat_mc <- (1 / n) * sum(x^3 * (x > 0) * (x < 5))
+theta_hat_mc
+
+#Importance Sampling
+g_x <- function(x){
+  x^3 * exp(-x) 
+}
+x <- runif(n, min = 0, max = 5)
+theta_hat_is <- 5 * 1 / n * sum(g_x(x))
+theta_hat_is
+
+#Integrate Function
+f_x <- function(x){
+  x^3 * exp(-x)
+}
+theta_hat_if <- integrate(f_x, 0, 5)
+theta_hat_if$value
+
+#Make a nice table
+summary_matrix <- matrix(c("Integrate in R", theta_hat_if$value,
+                           "MC Integration", theta_hat_mc,
+                           "Importance Sampling", theta_hat_is),
+                                         nrow = 3, byrow = TRUE)
+
+kable(summary_matrix, col.names = c("Method", "Estimate"),
+      align = "lc", caption = "Summary of Estimates")
+
+```
+
+4. Do a simulation study: For n = 100 Monte Carlo draws, compute your Monte Carlo and your Importance Sampling estimators 10,000 times.  Repeat for n = 1000 Monte Carlo draws.  Thus you'll have 4 data sets each with 10,000 estimates of the integral: 1 data set for each method with n = 100 and 1000.
+
+```{r}
+#n = 100
+n <- 100
+theta_hat_mc1 <- c()
+theta_hat_is1 <- c()
+ set.seed(1)
+ g_x <- function(x){
+    x^3 * exp(-x) 
+  }
+for (i in 1:10000){
+  #Monte Carlo Integration
+  x <- rexp(n, rate = 1)
+  theta_hat_mc1[i] <- (1 / n) * sum(x^3 * (x > 0) * (x < 5))
+
+  #Importance Sampling
+  x <- runif(n, min = 0, max = 5)
+  theta_hat_is1[i] <- 5 * 1 / n * sum(g_x(x))
+}
+```
+
+```{r}
+#n = 1000
+n <- 1000
+set.seed(1)
+theta_hat_mc2 <- c()
+theta_hat_is2 <- c()
+
+for (i in 1:10000){
+  #Monte Carlo Integration
+  x <- rexp(n, rate = 1)
+  theta_hat_mc2[i] <- (1 / n) * sum(x^3 * (x > 0) * (x < 5))
+  
+  #Importance Sampling
+  x <- runif(n, min = 0, max = 5)
+  theta_hat_is2[i] <- 5 * 1 / n * sum(g_x(x))
+  
+}
+
+```
+
+(a) Plot a histogram for each of your simulations.  Use the density scale and the same x-axis for all four of your plots.
+
+```{r, warning=FALSE}
+#Histogram of MC Integration, n=100
+mc_data1 <- as.data.frame(theta_hat_mc1)
+ggplot(data = mc_data1, aes(x = theta_hat_mc1)) +
+ geom_histogram(aes(y = ..density..), color = "green", fill = "red", alpha = 0.4, bins = 60) +
+ labs(title = "Estimate of Theta Using MC Integration, n=100") +
+  xlim(c(1,8)) 
+   
+#Histogram of Importance Sampling, n=100
+mc_data2 <- as.data.frame(theta_hat_is1)
+ggplot(data = mc_data2, aes(x = theta_hat_is1)) +
+ geom_histogram(aes(y = ..density..), color = "red", fill = "green", alpha = 0.4, bins = 70) +
+ labs(title = "Estimate of Theta Using Importance Sampling, n=100") +
+  xlim(c(1,8))  
+
+#Histogram of MC Integration, n=1000
+mc_data3 <- as.data.frame(theta_hat_mc2)
+ggplot(data = mc_data3, aes(x = theta_hat_mc2)) +
+ geom_histogram(aes(y = ..density..), color = "white", fill = "blue", alpha = 0.4, bins = 70) +
+ labs(title = "Estimate of Theta Using MC Integration, n=1000") +
+  xlim(c(1,8))
+
+#Histogram of Importance Sampling, n=1000
+mc_data4 <- as.data.frame(theta_hat_is2)
+ggplot(data = mc_data4, aes(x = theta_hat_is2)) +
+ geom_histogram(aes(y = ..density..), color = "blue", fill = "white", alpha = 0.4, bins = 70) +
+ labs(title = "Estimate of Theta Using Importance Sampling, n=1000") +
+  xlim(c(1,8))
+
+```
+
+(b) Fill in a nice table with the results.
+
+```{r}
+#mean and sd of MC Integration n = 100
+theta_hat_mc1_mean <- mean(theta_hat_mc1)
+theta_hat_mc1_mean
+
+theta_hat_mc1_sd <- sd(theta_hat_mc1)
+theta_hat_mc1_sd
+
+#mean and sd of Importance Sampling n = 100
+theta_hat_is1_mean <- mean(theta_hat_is1)
+theta_hat_is1_mean
+
+theta_hat_is1_sd <- sd(theta_hat_is1)
+theta_hat_is1_sd
+
+#mean and sd of MC Integration n = 1000
+theta_hat_mc2_mean <- mean(theta_hat_mc2)
+theta_hat_mc2_mean
+
+theta_hat_mc2_sd <- sd(theta_hat_mc2)
+theta_hat_mc2_sd
+
+#mean and sd of Importance Sampling n = 1000
+theta_hat_is2_mean <- mean(theta_hat_is2)
+theta_hat_is2_mean
+
+theta_hat_is2_sd <- sd(theta_hat_is2)
+theta_hat_is2_sd
+
+#Make a nice table
+summary_matrix <- matrix(c("MC Integration", 100, theta_hat_mc1_mean, theta_hat_mc1_sd,
+                           "MC Integration", 1000, theta_hat_mc2_mean, theta_hat_mc2_sd,
+                           "Importance Sampling", 100, theta_hat_is1_mean, theta_hat_is1_sd,
+                           "Importance Sampling", 1000, theta_hat_is2_mean, theta_hat_is2_sd),
+                            nrow = 4, byrow = TRUE)
+
+kable(summary_matrix, col.names = c("Method", "n", "Mean", "Standard Deviation"),
+      align = "llcc", caption = "Summary of Estimates")
+```
+
+(c) What happens to the sampling distribution as the number of Monte Carlo draws (n) increases?
+
+As the number of Monte Carlo draws increases we see that the sampling distribution for our estimator $\hat{\theta}$ becomes closer to the mean value and the variance decreases.
+
+(d) Which method is more efficient?  In other words, which method produces estimates that are closer to the truth with a smaller n?
+
+The importance sampling method is more efficient in terms of being closer to the true value provided by the integrate function in R.  The differences for n=100 are provided as follows:
+
+```{r}
+#Difference between true value and MC integration at n=100
+theta_hat_if$value - theta_hat_mc1_mean
+
+#Difference between true value and the Importance Sampling at n=100
+theta_hat_if$value - theta_hat_is1_mean
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

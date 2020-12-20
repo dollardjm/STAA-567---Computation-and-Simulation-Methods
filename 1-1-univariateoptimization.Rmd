@@ -1,0 +1,191 @@
+---
+title: 'STAA575: Univariate Optimization'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.height=4)
+#fig.height=4 makes plots 4 inches high 
+```
+## Plot the function $g$ and $g^\prime$
+```{r}
+par(mfrow=c(2,2) , mar=c(4,4,2,2))
+#mar changes the margins on the plot.  The number of lines of text
+#reserved on the bottom, left, top and right, respectively. 
+#I usually don't use mar unless I'm creating something formal.
+x <- seq(.01,10,.01)
+g <- function(x){log(x)/(1+x)}
+plot(x,g(x),type="l")
+title("Fig 1:  g")
+
+# zoom in
+x <- seq(2,6,.01)
+g <- function(x){log(x)/(1+x)}
+plot(x,g(x),type="l")
+title("Fig 2:  g, zoomed in")
+
+g.prime <- function(x){(1+(1/x)-log(x))/((1+x)^2)}
+plot(x,g.prime(x),type="l")
+abline(h=0,lty='dashed')
+title("Fig 3:  g'")
+```
+
+## Bisection method
+```{r}
+# example
+g.prime = function(x){(1+(1/x)-log(x))/((1+x)^2)}
+plot(x,g.prime(x),type="l",main="Fig 4:  Bisection")
+abline(h=0,lty='dashed')
+
+g.prime(4)
+abline(v=4)
+
+g.prime(3)
+abline(v=3)
+
+g.prime(3.5)
+abline(v=3.5)
+
+g.prime(3.75)
+abline(v=3.75,lty=2)
+
+# function
+bisec <- function(f,a,b,iter){
+	# f = objective function
+	# a = initial left endpoint
+	# b = initial right endpoint
+	# iter = number of iterations
+	for (i in 1:iter){
+		xt <- (a+b)/2
+		if (f(a)*f(xt)<0)
+			b <- xt
+		else
+			a <- xt
+	}
+	return(xt)
+}
+
+bisec(g.prime,2,6,50)
+
+g.prime <- function(x){(1+(1/x)-log(x))/((1+x)^2)}
+plot(x,g.prime(x),type="l",main="Fig 5:  Bisection \n 50 iterations")
+abline(h=0,lty='dashed')
+for (i in 1:30){
+	abline(v=bisec(g.prime,2,6,i))
+}
+```
+
+## Newton's method
+```{r}
+# example
+g.prime <- function(x){(1+1/x-log(x))/((1+x)^2)}
+plot(x,g.prime(x),type="l",main="Fig 6:  Newton's method, one step")
+abline(h=0,lty='dashed')
+
+g.2prime <- function(x){( (-1/x^2-1/x)*(1+x) - 2*(1+1/x-log(x)) )/((1+x)^3)}
+
+h <- function(x){(1+x)*(1+1/x-log(x))/(-3-4/x-1/x^2+2*log(x))}
+
+#initial point:
+x0 <- 2.5
+abline(v=x0)
+
+#linear approximation:
+abline(a=g.prime(x0)-x0*g.2prime(x0),b=g.2prime(x0),col='red')
+
+#new point:
+x1 <- x0 - h(x0)
+x1
+abline(v=x1)
+
+# function
+newton <- function(h,x0,iter){
+	# h = increment function
+	# x0 = initial value
+	# iter = number of iterations
+	xt <- x0
+	for (i in 1:iter)
+		xt <- xt - h(xt)
+		
+	return(xt)
+}
+newton(h,2.5,6)
+
+x <- seq(2,6,.01)
+g.prime <- function(x){(1+(1/x)-log(x))/((1+x)^2)}
+plot(x,g.prime(x),type="l",main="Fig 7:  Newton's method")
+abline(h=0,lty='dashed')
+x0 <- 2.5
+abline(v=x0)
+for (i in 1:10){
+	abline(v=newton(h,x0,i))
+	}
+```
+
+## Secant method
+```{r}
+x <- seq(2,6,.01)
+g.prime <- function(x){(1+1/x-log(x))/((1+x)^2)}
+plot(x,g.prime(x),type="l",main="Fig 7:  secant method, one step")
+abline(h=0,lty='dashed')
+
+#initial points:
+x0 <- 2.5
+abline(v=x0)
+x1 <- 3
+abline(v=x1)
+
+#secant:
+slope <- (g.prime(x0)-g.prime(x1))/(x0-x1)
+abline(a=g.prime(x1)-x1*slope,b=slope,col='red')
+h <- g.prime(x1)/slope
+
+#new point:
+x2 <- x1 - h
+x2
+abline(v=x2)
+
+# function
+secant <- function(f,x0,x1,iter){
+	# x0, x1 = initial values
+	# iter = number of iterations
+	x <- c()
+	x[1] <- x0
+	x[2] <- x1
+	for (t in 3:(iter+3)){
+		h <- f(x[t-1]) * (x[t-2]-x[t-1])/(f(x[t-2])-f(x[t-1]))
+		x[t] <- x[t-1] - h
+	}
+	return(x[t])
+}
+secant(g.prime,2.5,3,5)
+
+x <- seq(2,6,.01)
+plot(x,g.prime(x),type="l",main="Fig 8:  secant method")
+abline(h=0,lty='dashed')
+x0 <- 2.5
+abline(v=x0)
+x1 <- 3
+abline(v=x1)
+for (i in 1:10){
+	abline(v=secant(g.prime,x0,x1,i))
+}
+```
+
+## Use the optimize function in R
+First, some background on the optimize function: 
+The optimize function is for univariate functions.  It requires an interval.
+Optimize searches the interval from *lower* to *upper* for a minimum or maximum of the function f with respect to its first argument.  
+
+Optimize does not require a derivative.  It is based on an algorithm that combines parabolic interpolation
+(similar to Newton's method) with the golden section algorithm (similar to bisection method).  Parabolic interpolation 
+is a technique for finding the extremum (minimum or maximum) of a continuous unimodal function by successively fitting parabolas (polynomials of degree two) to a function of one variable at three unique points and at each iteration replacing the "oldest" point with the extremum of the fitted parabola. 
+
+```{r}
+#?optimize
+
+opt <- optimize(g, interval=c(1,10), maximum=TRUE)
+opt
+
+```
+
